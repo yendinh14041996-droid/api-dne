@@ -93,6 +93,11 @@ app.get('/transaction/:id', async (req, res) => {
     }
 })
 
+app.get("/health" , (req, res) =>{
+ res.status(200).json("🛠️  API HEALTH IS OK")
+
+})
+
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
     console.log(`🚀 Servido rodando na porta ${PORT}`);
