@@ -15,9 +15,10 @@ app.use(cors(corsOptions));
 app.use(express.json());
 
 // Rota de teste
-app.get('/dummie', (req, res) => {
-  return res.json({ name: "dummie dummie dummie" });
-});
+app.get("/health" , (req, res) =>{
+ res.status(200).json("🛠️  API HEALTH IS OK")
+
+})
 
 // Rota principal
 app.post('/create-transaction', async (req, res) => {
