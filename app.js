@@ -1,14 +1,14 @@
 const express = require('express');
-
-const app = express()
 const axios = require('axios');
-const cors = require('cors')
-
+const cors = require('cors');
 require('dotenv').config()
+
+const app = express();
+
 const corsOptions = {
-    origin: '*',
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type']
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type']
 };
 
 app.use(cors(corsOptions));
@@ -16,89 +16,86 @@ app.use(express.json());
 
 // Rota de teste
 app.get('/dummie', (req, res) => {
-    return res.json({ name: "dummie dummie dummie" });
+  return res.json({ name: "dummie dummie dummie" });
 });
 
+// Rota principal
+app.post('/create-transaction', async (req, res) => {
+  try {
+    const { name, email, cpf, phone, amount, address } = req.body;
 
-app.post("/create-transaction", async (req, res) => {
-    try {
-
-        console.log(req.body)
-        const { cpf, name, email, phone } = req.body;
-        const url = "https://api2.anubispay.com.br/v1/payment-transaction/create"
-        const auth = "Basic " + Buffer.from(`${process.env.API_PUBLIC_KEY}:${process.env.API_SECRET_KEY}`).toString("base64")
-        const cleanCpf = cpf.replace(/\D/g, '');
+    console.log(req.body)
 
 
-        const data = {
-            payment_method: "pix",
-            customer: {
-                document: {
-                    type: "cpf",
-                    number: cleanCpf
-                },
-                name: name,
-                email,
-                phone
-            },
-            items: [
-                {
-                    title: "carteirinha-cne",
-                    unit_price: 29,
-                    quantity: 1
-                }
-            ],
-            amount: 5800,
-            metadata: {
-                provider_name: "owner"
-            },
-            postback_url: "https://webhook.com",
-            pix: {
-                expires_in_days: 1
-            }
-        }
-        const response = await axios.post(url, data, {
-            headers: {
-                Authorization: auth,
-                'Content-Type': 'application/json'
-            }
-        })
-        res.json(response.data)
-        console.log(response.data)
-    } catch (error) {
-        console.error('Erro na requisição:', error.response?.data || error.message);
-        res.status(500).json({ error: 'Erro na requisição' });
-    }
-})
+
+    const url = process.env.URL;
+    const publicKey = process.env.PUBLIC_KEY;
+    const secretKey = process.env.SECRET_KEY;
+    const auth = 'Basic ' + Buffer.from(`${publicKey}:${secretKey}`).toString('base64');
+    const cleanCpf = cpf.replace(/\D/g, '');
+
+    const response = await axios.post(url, {
+      amount,
+      currency: 'BRL',
+      paymentMethod: 'pix',
+      shipping: {
+        fee: 0,
+        address: address
+      },
+      customer: {
+        name: name,
+        email: email,
+        document: { type: 'cpf', number: cleanCpf }
+      },
+      items: [{
+        title: 'Carteira DNE',
+        unitPrice: amount,
+        quantity: 1,
+        tangible: false
+      }]
+    }, {
+      headers: {
+        accept: 'application/json',
+        authorization: auth,
+        'content-type': 'application/json'
+      }
+    });
+    console.log()
+
+    const qrCode = response.data.pix.qrcode;
+    const id = response.data.id;
+
+    res.json({ id: id, qrcode: qrCode });
+
+  } catch (error) {
+    console.error('Erro na requisição:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Erro na requisição' });
+  }
+});
 
 app.get('/transaction/:id', async (req, res) => {
+  const id = req.params.id;
+  const publicKey = process.env.PUBLIC_KEY;
+  const secretKey = process.env.SECRET_KEY;
+  const auth = 'Basic ' + Buffer.from(`${publicKey}:${secretKey}`).toString('base64');
+  try {
+    const response = await axios.get(`${process.env.URL}/${id}`, {
+      headers: {
+        accept: 'application/json',
+        authorization: auth
+      }
+    });
 
-    try {
-        const { id } = req.params
-        const url = "https://api2.anubispay.com.br/v1/payment-transaction/info"
-        const auth = "Basic " + Buffer.from(`${process.env.API_PUBLIC_KEY}:${process.env.API_SECRET_KEY}`).toString("base64")
+    const status = response.data.status; // ou response.status dependendo da API
+    res.json({ status: status });
 
-        const response = await axios.get(`${url}/${id}`,{
-            headers:{
-                Authorization:auth,
-                'Content-Type':'application/json'
-            }
-        })
+  } catch (error) {
+    // console.error('Erro ao buscar transação:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Erro ao buscar transação' });
+  }
+});
 
-
-        res.status(200).json(response.data.data)
-    } catch (error) {
-        console.error('Erro na requisição:', error.response?.data || error.message);
-        res.status(500).json({ error: 'Erro na requisição' });
-    }
-})
-
-app.get("/health" , (req, res) =>{
- res.status(200).json("🛠️  API HEALTH IS OK")
-
-})
-
-const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => {
-    console.log(`🚀 Servido rodando na porta ${PORT}`);
+const port = 8080
+app.listen(port, () => {
+  console.log('server is running')
 })
